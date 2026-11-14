@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><link rel="stylesheet"
+href="{{ url_for('static', filename='style.css') }}">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>RescueReach AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+{% raw %}
+:root{
+  --bg:#0a0a0f;--bg2:#111118;--card:#16161f;--card2:#1e1e2a;
+  --border:#2a2a3a;--red:#ff2d2d;--red-glow:rgba(255,45,45,0.25);
+  --teal:#00d4aa;--teal-glow:rgba(0,212,170,0.2);
+  --amber:#ffa500;--amber-glow:rgba(255,165,0,0.2);
+  --green:#00e676;--green-glow:rgba(0,230,118,0.2);
+  --blue:#4fc3f7;--purple:#b388ff;
+  --text:#f0f0ff;--text2:#9090b0;--text3:#5a5a7a;
+  --r:16px;--rs:10px;--rl:24px;
+}
+.light{--bg:#f0f2f5;--card:#fff;--card2:#f8f9fc;--border:#e0e3ea;--text:#0d0d1a;--text2:#4a4a6a;--text3:#9090b0;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:#111}
+#app{width:100%;max-width:430px;height:100vh;margin:0 auto;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column}
+@media(min-width:500px){#app{box-shadow:0 0 80px rgba(0,0,0,0.8);border-left:1px solid var(--border);border-right:1px solid var(--border)}}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+.sb{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:72px}
+.sb::-webkit-scrollbar{width:0}
+.sbar{padding:12px 20px 6px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sbar-time{font-size:14px;font-weight:700;color:var(--text)}
+.bnav{position:absolute;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,0px)}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 8px;cursor:pointer}
+.bni-lbl{font-size:10px;font-weight:500;color:var(--text3);transition:color 0.2s}
+.bni.active .bni-lbl{color:var(--teal)}
+.h1{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+.h2{font-size:18px;font-weight:700;color:var(--text)}
+.h3{font-size:15px;font-weight:600;color:var(--text)}
+.body{font-size:14px;color:var(--text2);line-height:1.5}
+.sm{font-size:12px;color:var(--text3)}
+.xs{font-size:11px;color:var(--text3)}
+.card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:16px}
+.btn{border:none;border-radius:var(--rs);padding:14px 20px;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:scale(0.97)}
+.btn-p{background:var(--red);color:#fff;box-shadow:0 4px 20px var(--red-glow)}
+.btn-t{background:var(--teal);color:#000;box-shadow:0 4px 16px var(--teal-glow)}
+.btn-g{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-g:hover{background:var(--card2)}
+.btn-do{background:transparent;color:var(--red);border:1.5px solid var(--red)}
+.btn-b{width:100%}
+.btn-sm{padding:9px 16px;font-size:13px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.b-r{background:rgba(255,45,45,0.15);color:var(--red);border:1px solid rgba(255,45,45,0.3)}
+.b-g{background:rgba(0,230,118,0.12);color:var(--green);border:1px solid rgba(0,230,118,0.25)}
+.b-a{background:rgba(255,165,0,0.12);color:var(--amber);border:1px solid rgba(255,165,0,0.25)}
+.b-t{background:rgba(0,212,170,0.12);color:var(--teal);border:1px solid rgba(0,212,170,0.25)}
+.b-b{background:rgba(79,195,247,0.12);color:var(--blue);border:1px solid rgba(79,195,247,0.25)}
+.field{margin-bottom:14px}
+.fl{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:.5px}
+.fi{width:100%;padding:13px 14px;background:var(--card2);border:1.5px solid var(--border);border-radius:var(--rs);font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;transition:border-color .2s}
+.fi:focus{border-color:var(--teal)}
+.fi::placeholder{color:var(--text3)}
+select.fi{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9L12 15L18 9' stroke='%239090b0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tog{width:44px;height:24px;background:var(--border);border-radius:12px;position:relative;cursor:pointer;transition:background .25s;flex-shrink:0}
+.tog.on{background:var(--teal)}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tog.on::after{transform:translateX(20px)}
+.locbar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0}
+.locbar:active{background:var(--card2)}
+.loc-icon{width:32px;height:32px;background:rgba(255,45,45,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.loc-ct{flex:1;min-width:0}
+.loc-title{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.loc-sub{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.ldot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.shdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sall{font-size:12px;color:var(--teal);font-weight:600;cursor:pointer}
+/* ─── SPLASH ─── */
+#splash{background:radial-gradient(ellipse at 50% 0%,#1a0a1a,var(--bg) 70%);justify-content:space-between}
+.sp-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px}
+.sp-logo{position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center;margin-bottom:28px}
+.sp-ring{position:absolute;border-radius:50%;border:1.5px solid rgba(255,45,45,0.2);animation:spRing 2.5s ease-in-out infinite}
+.sp-ring:nth-child(1){width:120px;height:120px}
+.sp-ring:nth-child(2){width:88px;height:88px;border-color:rgba(255,45,45,.3);animation-delay:.3s}
+@keyframes spRing{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.06);opacity:.4}}
+.sp-icon{width:60px;height:60px;background:linear-gradient(135deg,#ff2d2d,#ff6b6b);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(255,45,45,.5);position:relative;z-index:2}
+.sp-brand{font-size:32px;font-weight:900;letter-spacing:-1px;margin-bottom:10px}
+.sp-brand .w{color:var(--text)}.sp-brand .r{color:var(--red)}.sp-brand .ai{font-size:18px;font-weight:700;color:var(--teal);margin-left:2px}
+.sp-tag{font-size:13px;color:var(--text2);text-align:center;line-height:1.6;max-width:240px;margin-bottom:28px}
+.sp-bot{padding:0 24px 40px;display:flex;flex-direction:column;gap:10px}
+/* ─── ONBOARD ─── */
+#onboard{background:var(--bg)}
+.ob-prog{display:flex;gap:4px;padding:0 20px;margin-bottom:20px}
+.ob-bar{flex:1;height:3px;border-radius:2px;background:var(--border);transition:background .4s}
+.ob-bar.done{background:var(--teal)}
+.ob-step{display:none;padding:0 20px 20px;overflow-y:auto;flex:1}
+.ob-step.active{display:block}
+.blood-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px}
+.bo{padding:10px 4px;border:1.5px solid var(--border);border-radius:var(--rs);background:var(--card2);font-size:13px;font-weight:700;font-family:'Inter',sans-serif;color:var(--text2);cursor:pointer;text-align:center;transition:all .15s}
+.bo.sel{background:rgba(255,45,45,.1);border-color:var(--red);color:var(--red)}
+/* ─── HOME ─── */
+#home{background:var(--bg)}
+.home-hdr{padding:10px 20px 8px;background:var(--bg);flex-shrink:0}
+.home-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.home-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--red),#ff6b6b);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0}
+/* ─── MONITORING ─── */
+#monitor{background:var(--bg)}
+.mon-hdr{padding:10px 20px 6px;flex-shrink:0;display:flex;align-items:center;gap:10px}
+.radar-section{display:flex;flex-direction:column;align-items:center;padding:20px 16px 10px;background:var(--bg)}
+.radar-wrap{position:relative;width:180px;height:180px;display:flex;align-items:center;justify-content:center}
+.rring{position:absolute;border-radius:50%;border:1px solid rgba(0,212,170,0.2)}
+.rring:nth-child(1){width:180px;height:180px}
+.rring:nth-child(2){width:134px;height:134px;border-color:rgba(0,212,170,.3)}
+.rring:nth-child(3){width:90px;height:90px;border-color:rgba(0,212,170,.5)}
+.rsweep{position:absolute;width:90px;height:90px;top:50%;left:50%;transform-origin:0% 100%;animation:sweep 3s linear infinite;background:conic-gradient(transparent 0deg,rgba(0,212,170,.5) 70deg,transparent 70deg)}
+@keyframes sweep{from{transform:rotate(0deg) translateY(-100%)}to{transform:rotate(360deg) translateY(-100%)}}
+.rcore{width:44px;height:44px;border-radius:50%;background:rgba(0,212,170,.12);border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+.radar-status{margin-top:14px;text-align:center}
+.radar-status-title{font-size:15px;font-weight:700;color:var(--teal);letter-spacing:.5px}
+.radar-status-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.ai-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px;margin-bottom:12px}
+.ai-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px}
+.ai-stat-val{font-size:20px;font-weight:800}
+.ai-stat-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.wave-card{margin:0 16px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.wave-bars{display:flex;align-items:flex-end;gap:2px;height:56px}
+.wbar{flex:1;border-radius:2px;background:var(--teal);opacity:.75;transition:height .1s;min-width:3px}
+.det-list{margin:0 16px 12px}
+.det-item{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.det-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.det-name{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.det-bw{width:72px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.det-bf{height:100%;background:var(--teal);border-radius:2px}
+.det-conf{font-size:12px;font-weight:600;color:var(--teal);min-width:32px;text-align:right}
+/* ─── BACKEND STATUS PILL ─── */
+.be-status{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px;border:1px solid}
+.be-online{background:rgba(0,230,118,.08);border-color:rgba(0,230,118,.3);color:var(--green)}
+.be-offline{background:rgba(255,45,45,.08);border-color:rgba(255,45,45,.3);color:var(--red)}
+.be-checking{background:rgba(255,165,0,.08);border-color:rgba(255,165,0,.3);color:var(--amber)}
+/* ─── DETECTION BUTTONS ─── */
+.det-btns{padding:0 16px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mic-btn{padding:14px;font-size:13px;font-weight:700;border-radius:var(--rs);border:none;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:5px}
+.mic-btn:active{transform:scale(.96)}
+.mic-btn-real{background:rgba(0,212,170,.1);color:var(--teal);border:1.5px solid rgba(0,212,170,.35)}
+.mic-btn-real.active-mic{background:rgba(0,212,170,.22);border-color:var(--teal);animation:micPulse 1.2s infinite}
+.mic-btn-sim{background:rgba(255,45,45,.1);color:var(--red);border:1.5px solid rgba(255,45,45,.3)}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,170,.4)}70%{box-shadow:0 0 0 10px rgba(0,212,170,0)}}
+.mic-icon{font-size:22px}
+/* ─── LOADING OVERLAY ─── */
+.loading-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin:0 16px 10px}
+.loading-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--blue));border-radius:2px;width:0;transition:width .3s}
+.loading-fill.active{animation:loadSweep 1.4s ease-in-out infinite}
+@keyframes loadSweep{0%{width:20%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:20%;margin-left:80%}}
+/* ─── SENDING INDICATOR ─── */
+.sending-pill{display:none;align-items:center;gap:8px;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:20px;padding:8px 14px;margin:0 16px 10px}
+.sending-pill.show{display:flex}
+.spin{width:14px;height:14px;border:2px solid rgba(0,212,170,.3);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ─── ALERT CONFIRM ─── */
+#alert-confirm{background:radial-gradient(ellipse at 50% 10%,#2a0000,var(--bg) 70%)}
+.ac-top{padding:36px 24px 20px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.ac-ring{width:96px;height:96px;border-radius:50%;background:rgba(255,45,45,.1);border:2px solid rgba(255,45,45,.3);display:flex;align-items:center;justify-content:center;margin-bottom:20px;animation:acPulse 1s infinite}
+@keyframes acPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,45,.4)}70%{box-shadow:0 0 0 20px rgba(255,45,45,0)}}
+.ac-cd{width:80px;height:80px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;color:#fff}
+.sev-card{margin:0 24px 16px;border-radius:var(--r);padding:16px;border:2px solid}
+.sev-high{background:rgba(255,45,45,.06);border-color:var(--red)}
+.sev-med{background:rgba(255,165,0,.06);border-color:var(--amber)}
+.sev-low{background:rgba(0,230,118,.06);border-color:var(--green)}
+.sev-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sev-icon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px}
+.sev-label{font-size:18px;font-weight:800}
+.sev-sub{font-size:12px;margin-top:2px}
+.sev-meter{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:10px}
+.sev-meter-fill{height:100%;border-radius:4px;transition:width .6s}
+.sev-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)}
+.sev-row:last-child{border-bottom:none}
+.sev-key{font-size:12px;color:var(--text2)}
+.sev-val{font-size:12px;font-weight:700;color:var(--text)}
+/* ─── EMERGENCY ─── */
+#emergency{background:var(--bg)}
+.emg-banner{background:linear-gradient(135deg,#1a0000,#2d0000);border-bottom:1px solid rgba(255,45,45,.3);padding:14px 20px;flex-shrink:0}
+.emg-title{font-size:17px;font-weight:800;color:var(--red);display:flex;align-items:center;gap:8px}
+.emg-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.emg-timer{font-size:20px;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;margin-left:auto}
+.tl-item{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+.tl-col{display:flex;flex-direction:column;align-items:center}
+.tl-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tl-dot.done{background:rgba(0,230,118,.12);border:1.5px solid var(--green)}
+.tl-dot.act{background:rgba(255,165,0,.12);border:1.5px solid var(--amber);animation:tlPulse 1.5s infinite}
+.tl-dot.pend{background:var(--card2);border:1.5px solid var(--border)}
+@keyframes tlPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,165,0,.4)}70%{box-shadow:0 0 0 8px rgba(255,165,0,0)}}
+.tl-line{width:2px;flex:1;min-height:14px;background:var(--border);margin:2px 0}
+.tl-line.done{background:var(--green)}
+.tl-ct{flex:1;padding-top:3px}
+.tl-title{font-size:13px;font-weight:600;color:var(--text)}
+.tl-detail{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.4}
+.amb-card{margin:0 16px 12px;background:linear-gradient(135deg,rgba(255,45,45,.08),rgba(255,45,45,.03));border:1px solid rgba(255,45,45,.2);border-radius:var(--r);padding:16px}
+.amb-hdr{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.amb-ico{width:44px;height:44px;background:rgba(255,45,45,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px}
+.amb-eta{background:var(--red);color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700}
+.amb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.amb-item{background:rgba(0,0,0,.2);border-radius:8px;padding:10px}
+.amb-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.amb-val{font-size:13px;font-weight:600;color:var(--text);margin-top:3px}
+.resp-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.resp-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#000;flex-shrink:0}
+.resp-info{flex:1}
+.resp-name{font-size:13px;font-weight:600;color:var(--text)}
+.resp-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.resp-dist{font-size:11px;font-weight:700;color:var(--teal);background:rgba(0,212,170,.1);padding:4px 8px;border-radius:6px;white-space:nowrap}
+.audio-cl{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:14px;display:flex;align-items:center;gap:12px}
+.audio-play{width:36px;height:36px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.audio-wave{flex:1;height:32px;display:flex;align-items:center;gap:1px}
+.aw-bar{flex:1;background:var(--teal);opacity:.6;border-radius:1px;min-width:2px}
+.ev-wrap{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.ev-wrap::-webkit-scrollbar{display:none}
+.ev-thumb{width:70px;height:70px;border-radius:10px;overflow:hidden;flex-shrink:0;position:relative;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px}
+.ev-time{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.7);color:#fff;font-size:9px;padding:2px 5px;border-radius:4px}
+/* ─── MAP ─── */
+#map-screen{background:var(--bg)}
+#leaflet-map{width:100%;height:300px;z-index:1}
+.route-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.route-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.route-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.route-line{flex:1;height:3px;background:var(--border);position:relative;overflow:hidden;border-radius:2px}
+.route-fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,var(--red),var(--amber));animation:routeFill 2.5s ease-in-out infinite}
+@keyframes routeFill{0%{width:30%}100%{width:85%}}
+.route-amb{font-size:22px;animation:ambBounce .8s ease-in-out infinite}
+@keyframes ambBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.eta-countdown{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,45,45,.08);border:1px solid rgba(255,45,45,.2);border-radius:var(--rs);padding:12px;margin-bottom:10px}
+.eta-big{font-size:32px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums}
+.eta-lbl{font-size:12px;color:var(--text2)}
+.hosp-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:8px}
+.hosp-card:active{background:var(--card2)}
+.hosp-cross{width:42px;height:42px;background:rgba(255,45,45,.12);border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
+.hosp-info{flex:1}
+.hosp-name{font-size:13px;font-weight:600;color:var(--text)}
+.hosp-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.hosp-dist{font-size:11px;font-weight:700;color:var(--green);background:rgba(0,230,118,.1);padding:4px 8px;border-radius:6px}
+.hosp-eta-lbl{font-size:11px;font-weight:700;color:var(--blue);background:rgba(79,195,247,.1);padding:4px 8px;border-radius:6px;margin-top:4px;display:inline-block}
+/* ─── FIRST AID ─── */
+#firstaid{background:var(--bg)}
+.ai-assistant-bar{background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(79,195,247,.05));border:1px solid rgba(0,212,170,.2);border-radius:var(--r);margin:0 16px 12px;padding:14px}
+.ai-orb{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .2s}
+.ai-orb:active{transform:scale(.93)}
+.ai-orb.speaking{animation:orbPulse .8s ease-in-out infinite}
+@keyframes orbPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,170,.5)}50%{box-shadow:0 0 0 12px rgba(0,212,170,0)}}
+.ai-wave{display:flex;align-items:center;gap:3px;height:24px;flex:1}
+.ai-wbar{width:3px;background:var(--teal);border-radius:2px;opacity:.5;transition:height .15s}
+.ai-wbar.active{opacity:1}
+.qna-input-wrap{background:var(--card2);border:1.5px solid var(--border);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;gap:10px;margin:0 16px 12px}
+.qna-input{background:none;border:none;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);flex:1;outline:none}
+.qna-input::placeholder{color:var(--text3)}
+.qna-send{width:32px;height:32px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;flex-shrink:0}
+.qna-chat{margin:0 16px 12px;display:flex;flex-direction:column;gap:8px;max-height:160px;overflow-y:auto}
+.qna-chat::-webkit-scrollbar{width:0}
+.qna-msg{border-radius:var(--rs);padding:10px 12px;font-size:13px;line-height:1.5;max-width:90%}
+.qna-msg.user{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:var(--teal);align-self:flex-end}
+.qna-msg.ai{background:var(--card);border:1px solid var(--border);color:var(--text);align-self:flex-start}
+.fa-cats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px;margin-bottom:12px}
+.fa-cat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;cursor:pointer;text-align:center;transition:all .2s}
+.fa-cat:active{transform:scale(.96)}
+.fa-cat.sel{border-color:var(--teal);background:rgba(0,212,170,.05)}
+.fa-cat-ico{font-size:22px;margin-bottom:5px}
+.fa-cat-n{font-size:12px;font-weight:600;color:var(--text)}
+.fa-guide{margin:0 16px 8px;background:var(--card);border:1px solid var(--border);border-radius:var(--r)}
+.fa-ghdr{padding:13px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;border-bottom:1px solid transparent}
+.fa-guide.open .fa-ghdr{border-bottom-color:var(--border)}
+.fa-gt{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.fa-chev{transition:transform .2s;color:var(--text3)}
+.fa-guide.open .fa-chev{transform:rotate(180deg)}
+.fa-gbody{padding:13px 16px;display:none}
+.fa-guide.open .fa-gbody{display:block}
+.fa-step{display:flex;gap:10px;margin-bottom:11px}
+.fa-snum{width:24px;height:24px;border-radius:50%;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--teal);flex-shrink:0;margin-top:1px}
+.fa-stxt{font-size:13px;color:var(--text2);line-height:1.5}
+.fa-warn{background:rgba(255,165,0,.08);border:1px solid rgba(255,165,0,.2);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12px;color:var(--amber);line-height:1.5}
+/* ─── PROFILE ─── */
+#profile-screen{background:var(--bg)}
+.pf-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:20px;display:flex;flex-direction:column;align-items:center;text-align:center;margin:0 16px 14px}
+.pf-av{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--red),#ff6b6b);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;margin-bottom:11px;box-shadow:0 4px 20px rgba(255,45,45,.3)}
+.pf-name{font-size:19px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.pf-id{font-size:12px;color:var(--text3);margin-top:3px}
+.pf-badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.set-item{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:13px 15px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer}
+.set-item:active{background:var(--card2)}
+.set-ico{width:35px;height:35px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.set-lbl{font-size:14px;font-weight:500;color:var(--text);flex:1}
+.modal-ov{position:absolute;inset:0;background:rgba(0,0,0,.72);z-index:500;display:none;align-items:flex-end}
+.modal-ov.open{display:flex;animation:ovIn .25s ease}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+.modal-sheet{width:100%;background:var(--card);border-radius:24px 24px 0 0;animation:sheetUp .3s cubic-bezier(.4,0,.2,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.m-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto}
+.loc-opt{padding:13px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s}
+.loc-opt:active{background:var(--card2)}
+.loc-opt-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.loc-opt-n{font-size:14px;font-weight:500;color:var(--text)}
+.loc-opt-a{font-size:12px;color:var(--text3);margin-top:2px}
+.loc-opt-d{font-size:11px;font-weight:600;color:var(--teal);background:rgba(0,212,170,.1);padding:2px 8px;border-radius:6px}
+.toast{position:absolute;top:68px;left:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;z-index:400;display:none;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.toast.show{display:flex;align-items:flex-start;animation:toastIn .3s ease}
+@keyframes toastIn{from{transform:translateY(-18px);opacity:0}to{transform:translateY(0);opacity:1}}
+.ai-voice-popup{position:absolute;bottom:80px;left:16px;right:16px;background:linear-gradient(135deg,var(--card),rgba(0,212,170,.05));border:1.5px solid rgba(0,212,170,.4);border-radius:var(--r);padding:14px;z-index:300;display:none;gap:12px;align-items:center;box-shadow:0 8px 32px rgba(0,212,170,.15)}
+.ai-voice-popup.show{display:flex;animation:toastIn .3s ease}
+.ai-popup-orb{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;flex-shrink:0;animation:orbPulse .8s ease-in-out infinite}
+.ai-popup-txt{font-size:13px;color:var(--teal);font-weight:600;flex:1;line-height:1.4}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;margin-bottom:14px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px}
+.stat-val{font-size:20px;font-weight:800;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px;margin-bottom:14px}
+.feat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;cursor:pointer;transition:all .2s}
+.feat-card:active{transform:scale(.96);background:var(--card2)}
+.feat-ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:9px;font-size:18px}
+.feat-n{font-size:13px;font-weight:600;color:var(--text)}
+.feat-d{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.4}
+{% endraw %}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ SPLASH ══ -->
+<div class="screen active" id="splash">
+  <div class="sp-center">
+    <div class="sp-logo">
+      <div class="sp-ring"></div><div class="sp-ring"></div>
+      <div class="sp-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 6V12C4 16.4 7.4 20.5 12 22C16.6 20.5 20 16.4 20 12V6L12 2Z" fill="white"/><path d="M10.5 15.5L7.5 12.5L8.9 11.1L10.5 12.7L15.1 8.1L16.5 9.5L10.5 15.5Z" fill="#ff2d2d"/></svg>
+      </div>
+    </div>
+    <div class="sp-brand"><span class="w">Rescue</span><span class="r">Reach</span><span class="ai"> AI</span></div>
+    <div class="sp-tag">Real-time AI-powered accident detection &amp; emergency response platform</div>
+    <div style="display:flex;gap:6px;margin-bottom:20px"><div class="badge b-t">AI Powered</div><div class="badge b-r">Emergency Ready</div></div>
+  </div>
+  <div class="sp-bot">
+    <button class="btn btn-p btn-b" onclick="goto('onboard')">Get Started</button>
+    <button class="btn btn-g btn-b" onclick="quickLogin()">I Already Have an Account</button>
+    <p class="xs" style="text-align:center;margin-top:8px">By continuing, you agree to our <span style="color:var(--teal)">Terms</span> &amp; <span style="color:var(--teal)">Privacy Policy</span></p>
+  </div>
+</div>
+
+<!-- ══ ONBOARD ══ -->
+<div class="screen" id="onboard">
+  <div class="sbar"><span class="sbar-time" id="clock-ob">9:41</span></div>
+  <div style="padding:10px 20px 0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="flex:1"><div class="h2">Create Profile</div><div class="sm" style="margin-top:2px">Step <span id="ob-snum">1</span> of 3</div></div>
+      <button class="btn btn-g btn-sm" onclick="quickLogin()">Skip →</button>
+    </div>
+    <div class="ob-prog"><div class="ob-bar" id="op1"></div><div class="ob-bar" id="op2"></div><div class="ob-bar" id="op3"></div></div>
+  </div>
+  <div class="ob-step active" id="obs1">
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><div style="width:30px;height:30px;background:rgba(0,212,170,.12);border-radius:8px;display:flex;align-items:center;justify-content:center">👤</div><span class="h3">Personal Info</span></div>
+      <div class="field"><label class="fl">Full Name *</label><input class="fi" type="text" placeholder="Enter your full name" id="rn"/></div>
+      <div class="frow" style="margin-bottom:14px">
+        <div class="field" style="margin-bottom:0"><label class="fl">Age *</label><input class="fi" type="number" placeholder="25" id="ra"/></div>
+        <div class="field" style="margin-bottom:0"><label class="fl">Gender *</label><select class="fi" id="rg"><option value="" disabled selected>Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+      </div>
+      <div class="field"><label class="fl">Phone *</label><input class="fi" type="tel" placeholder="+91 98765 43210" id="rp"/></div>
+      <div class="field"><label class="fl">Email</label><input class="fi" type="email" placeholder="you@example.com"/></div>
+      <div class="field" style="margin-bottom:0"><label class="fl">Address</label><input class="fi" type="text" placeholder="Street, Area, City" id="raddr"/></div>
+    </div>
+    <button class="btn btn-t btn-b" onclick="obNext(2)">Continue →</button>
+  </div>
+  <div class="ob-step" id="obs2">
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><div style="width:30px;height:30px;background:rgba(255,45,45,.1);border-radius:8px;display:flex;align-items:center;justify-content:center">🏥</div><span class="h3">Medical Info</span></div>
+      <div class="field"><label class="fl">Blood Group *</label>
+        <div class="blood-grid" id="bg-grid">
+          <div class="bo" onclick="selBG(this)">A+</div><div class="bo" onclick="selBG(this)">A−</div>
+          <div class="bo" onclick="selBG(this)">B+</div><div class="bo" onclick="selBG(this)">B−</div>
+          <div class="bo" onclick="selBG(this)">O+</div><div class="bo" onclick="selBG(this)">O−</div>
+          <div class="bo" onclick="selBG(this)">AB+</div><div class="bo" onclick="selBG(this)">AB−</div>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:14px">
+        <div class="field" style="margin-bottom:0"><label class="fl">Height (cm)</label><input class="fi" type="number" placeholder="170"/></div>
+        <div class="field" style="margin-bottom:0"><label class="fl">Weight (kg)</label><input class="fi" type="number" placeholder="65"/></div>
+      </div>
+      <div class="field"><label class="fl">Known Conditions</label><input class="fi" type="text" placeholder="e.g. Diabetes, Asthma"/></div>
+      <div class="field" style="margin-bottom:0"><label class="fl">Allergies</label><input class="fi" type="text" placeholder="e.g. Penicillin"/></div>
+    </div>
+    <div style="display:flex;gap:10px"><button class="btn btn-g" style="flex:1" onclick="obNext(1)">← Back</button><button class="btn btn-t" style="flex:2" onclick="obNext(3)">Continue →</button></div>
+  </div>
+  <div class="ob-step" id="obs3">
+    <div class="card" style="margin-bottom:14px;border-color:rgba(255,45,45,.2);background:linear-gradient(135deg,rgba(255,45,45,.04),var(--card))">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><div style="width:30px;height:30px;background:rgba(255,45,45,.12);border-radius:8px;display:flex;align-items:center;justify-content:center">🆘</div><span class="h3">Emergency Contact</span></div>
+      <div class="field"><label class="fl">Contact Name *</label><input class="fi" type="text" placeholder="Full name" id="ecn"/></div>
+      <div class="field"><label class="fl">Relationship</label><select class="fi"><option value="" disabled selected>Select</option><option>Spouse / Partner</option><option>Parent</option><option>Sibling</option><option>Friend</option></select></div>
+      <div class="field"><label class="fl">Phone *</label><input class="fi" type="tel" placeholder="+91 98765 43210" id="ecp"/></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="h3" style="margin-bottom:12px">Permissions</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px"><div class="tog on" onclick="this.classList.toggle('on')"></div><div><div class="body" style="font-size:13px">Location Access</div><div class="xs">Required for emergency response</div></div></div>
+        <div style="display:flex;align-items:center;gap:10px"><div class="tog on" onclick="this.classList.toggle('on')"></div><div><div class="body" style="font-size:13px">Camera &amp; Microphone</div><div class="xs">For accident evidence capture</div></div></div>
+        <div style="display:flex;align-items:center;gap:10px"><div class="tog on" onclick="this.classList.toggle('on')"></div><div><div class="body" style="font-size:13px">Motion Sensors</div><div class="xs">For AI accident detection</div></div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px"><button class="btn btn-g" style="flex:1" onclick="obNext(2)">← Back</button><button class="btn btn-p" style="flex:2" onclick="completeReg()">Create Profile →</button></div>
+  </div>
+</div>
+
+<!-- ══ HOME DASHBOARD ══ -->
+<div class="screen" id="home">
+  <div class="home-hdr">
+    <div class="sbar" style="padding:12px 0 6px">
+      <span class="sbar-time" id="clock-home">9:41</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <!-- Backend Status -->
+        <div id="be-pill" class="be-status be-checking" title="Backend Status">⬤ Checking</div>
+        <div style="width:30px;height:30px;background:var(--card2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="toggleTheme()">🌙</div>
+      </div>
+    </div>
+    <div class="home-top">
+      <div><div style="font-size:13px;color:var(--text2)">Good morning 👋</div><div style="font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.3px" id="home-name">Rahul Sharma</div></div>
+      <div class="home-av" onclick="goto('profile-screen')" id="home-av">RS</div>
+    </div>
+  </div>
+  <div class="locbar" onclick="openLocModal()">
+    <div class="loc-icon">📍</div>
+    <div class="loc-ct">
+      <div class="loc-title"><div class="ldot"></div><span id="loc-area">Bandra West, Mumbai</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="loc-sub" id="loc-full">19.0596° N, 72.8295° E · GPS Active</div>
+    </div>
+    <span class="badge b-g" style="font-size:10px">Live</span>
+  </div>
+  <div style="padding:10px 16px 0"><div style="display:inline-flex;align-items:center;gap:7px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--green)"><div class="ldot"></div>AI Protection Active</div></div>
+  <div class="sb">
+    <div class="stat-grid" style="margin-top:12px">
+      <div class="stat-card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div style="width:32px;height:32px;border-radius:9px;background:rgba(0,212,170,.1);display:flex;align-items:center;justify-content:center;font-size:16px">🛡️</div><span class="badge b-g" style="font-size:9px">ON</span></div><div class="stat-val">99.8%</div><div class="stat-lbl">AI Uptime</div></div>
+      <div class="stat-card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div style="width:32px;height:32px;border-radius:9px;background:rgba(255,165,0,.1);display:flex;align-items:center;justify-content:center;font-size:16px">⚡</div><span style="font-size:10px;color:var(--text3)">Live</span></div><div class="stat-val" style="color:var(--amber)">0.4s</div><div class="stat-lbl">Response Time</div></div>
+      <div class="stat-card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div style="width:32px;height:32px;border-radius:9px;background:rgba(79,195,247,.1);display:flex;align-items:center;justify-content:center;font-size:16px">🌐</div></div><div class="stat-val" style="color:var(--blue)">12</div><div class="stat-lbl">Nearby Responders</div></div>
+      <div class="stat-card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div style="width:32px;height:32px;border-radius:9px;background:rgba(0,230,118,.1);display:flex;align-items:center;justify-content:center;font-size:16px">🏥</div></div><div class="stat-val" style="color:var(--green)">3</div><div class="stat-lbl">Hospitals Nearby</div></div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:14px">
+      <div class="shdr"><span class="h3">Quick Actions</span></div>
+      <div class="feat-grid">
+        <div class="feat-card" onclick="goto('monitor')"><div class="feat-ico" style="background:rgba(0,212,170,.1)">📡</div><div class="feat-n">AI Monitor</div><div class="feat-d">Start accident detection</div></div>
+        <div class="feat-card" onclick="goto('firstaid')"><div class="feat-ico" style="background:rgba(255,45,45,.1)">🩺</div><div class="feat-n">First Aid + AI</div><div class="feat-d">Guides &amp; voice assistant</div></div>
+        <div class="feat-card" onclick="goto('map-screen')"><div class="feat-ico" style="background:rgba(79,195,247,.1)">🗺️</div><div class="feat-n">Live Map</div><div class="feat-d">Ambulance tracking</div></div>
+        <div class="feat-card" onclick="goto('emergency')"><div class="feat-ico" style="background:rgba(255,165,0,.1)">🚨</div><div class="feat-n">Emergency</div><div class="feat-d">Response center</div></div>
+      </div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:16px">
+      <div class="shdr"><span class="h3">Nearest Hospitals</span><span class="sall" onclick="goto('map-screen')">Map →</span></div>
+      <div class="hosp-card"><div class="hosp-cross">🏥</div><div class="hosp-info"><div class="hosp-name">Lilavati Hospital</div><div class="hosp-meta">24/7 Emergency · Trauma Center · Bandra West</div><span class="hosp-eta-lbl">ETA ~4 min</span></div><div class="hosp-dist">1.2 km</div></div>
+      <div class="hosp-card"><div class="hosp-cross">🏥</div><div class="hosp-info"><div class="hosp-name">Kokilaben Hospital</div><div class="hosp-meta">ICU · Neuro · Cardiac · Andheri West</div><span class="hosp-eta-lbl">ETA ~9 min</span></div><div class="hosp-dist">3.8 km</div></div>
+      <div class="hosp-card"><div class="hosp-cross">🏥</div><div class="hosp-info"><div class="hosp-name">Apollo Hospital</div><div class="hosp-meta">Multi-Specialty · Navi Mumbai</div><span class="hosp-eta-lbl">ETA ~14 min</span></div><div class="hosp-dist">7.2 km</div></div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="bni active" onclick="setNav(this,'home')"><div style="font-size:20px">🏠</div><span class="bni-lbl" style="color:var(--teal)">Home</span></div>
+    <div class="bni" onclick="setNav(this,'monitor')"><div style="font-size:20px">📡</div><span class="bni-lbl">Monitor</span></div>
+    <div class="bni" onclick="setNav(this,'map-screen')"><div style="font-size:20px">🗺️</div><span class="bni-lbl">Map</span></div>
+    <div class="bni" onclick="setNav(this,'firstaid')"><div style="font-size:20px">🩺</div><span class="bni-lbl">First Aid</span></div>
+    <div class="bni" onclick="setNav(this,'profile-screen')"><div style="font-size:20px">👤</div><span class="bni-lbl">Profile</span></div>
+  </div>
+</div>
+
+<!-- ══ MONITORING ══ -->
+<div class="screen" id="monitor">
+  <div class="sbar"><span class="sbar-time" id="clock-mon">9:41</span><span class="badge b-t" id="mon-badge">● MONITORING</span></div>
+  <div class="mon-hdr">
+    <button class="btn btn-g btn-sm" onclick="goto('home')" style="padding:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div><div class="h2">AI Detection</div><div class="sm" id="mon-sub">Background monitoring active</div></div>
+  </div>
+  <div class="sb">
+    <div class="radar-section">
+      <div class="radar-wrap">
+        <div class="rring"></div><div class="rring"></div><div class="rring"></div>
+        <div class="rsweep"></div>
+        <div class="rcore"><div style="width:12px;height:12px;border-radius:50%;background:var(--teal)"></div></div>
+      </div>
+      <div class="radar-status">
+        <div class="radar-status-title" id="radar-title">ACTIVELY MONITORING</div>
+        <div class="radar-status-sub" id="radar-sub">Background service · AI sound analysis running</div>
+      </div>
+    </div>
+
+    <!-- ── BACKEND STATUS + SENDING INDICATOR ── -->
+    <div style="padding:0 16px;margin-bottom:6px;display:flex;justify-content:center">
+      <div id="be-pill-mon" class="be-status be-checking">⬤ Checking backend...</div>
+    </div>
+    <div class="sending-pill" id="sending-pill">
+      <div class="spin"></div>
+      <span style="font-size:12px;font-weight:600;color:var(--teal)" id="sending-txt">Sending audio to backend...</span>
+    </div>
+    <!-- Loading bar -->
+    <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+
+    <!-- ── DETECTION BUTTONS ── -->
+    <div class="det-btns">
+      <!-- Real Mic Detection -->
+      <button class="mic-btn mic-btn-real" id="mic-btn" onclick="toggleMicDetection()">
+        <div class="mic-icon">🎤</div>
+        <div style="font-size:12px;font-weight:700">Real Mic</div>
+        <div id="mic-btn-sub" style="font-size:10px;opacity:.7">Tap to start</div>
+      </button>
+      <!-- Dummy/Simulate Detection -->
+      <button class="mic-btn mic-btn-sim" id="sim-btn" onclick="sendDummyAudioToBackend()">
+        <div class="mic-icon">⚡</div>
+        <div style="font-size:12px;font-weight:700">Simulate</div>
+        <div style="font-size:10px;opacity:.7">Dummy audio test</div>
+      </button>
+    </div>
+
+    <!-- Pause/Resume -->
+    <div style="padding:0 16px 14px">
+      <button class="btn btn-b" id="pause-btn" onclick="toggleMonitor()" style="background:rgba(255,45,45,.12);color:var(--red);border:1.5px solid rgba(255,45,45,.3)">⏸ PAUSE MONITORING</button>
+    </div>
+
+    <div class="ai-stats">
+      <div class="ai-stat"><div class="ai-stat-val" style="color:var(--teal)">99.8%</div><div class="ai-stat-lbl">AI Uptime</div></div>
+      <div class="ai-stat"><div class="ai-stat-val" style="color:var(--amber)" id="last-prob">—</div><div class="ai-stat-lbl">Last Prob Score</div></div>
+    </div>
+
+    <div class="wave-card">
+      <div class="shdr"><span class="h3">Live Audio Feed</span><span class="sm" id="db-lv">— dB</span></div>
+      <div class="wave-bars" id="wave-bars"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="xs">Ambient</span><span class="xs" style="color:var(--amber)">Threshold: 85 dB</span><span class="xs" style="color:var(--red)">Critical: 110 dB</span></div>
+    </div>
+
+    <div class="det-list">
+      <div class="shdr mb-0" style="padding:0"><span class="h3">AI Detection Patterns</span></div>
+      <div style="margin-top:10px">
+        <div class="det-item"><div class="det-dot" style="background:#ff2d2d"></div><span class="det-name">Road Accident / Collision</span><div class="det-bw"><div class="det-bf" id="dp-accident" style="width:0%"></div></div><span class="det-conf" id="dc-accident">0%</span></div>
+        <div class="det-item"><div class="det-dot" style="background:#ff6b2d"></div><span class="det-name">Blast / Explosion</span><div class="det-bw"><div class="det-bf" style="width:12%"></div></div><span class="det-conf">12%</span></div>
+        <div class="det-item"><div class="det-dot" style="background:#ffa500"></div><span class="det-name">Gunshot / Firearm</span><div class="det-bw"><div class="det-bf" style="width:8%"></div></div><span class="det-conf">8%</span></div>
+        <div class="det-item"><div class="det-dot" style="background:#b388ff"></div><span class="det-name">Scream / Distress Call</span><div class="det-bw"><div class="det-bf" style="width:5%"></div></div><span class="det-conf">5%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ALERT CONFIRM ══ -->
+<div class="screen" id="alert-confirm">
+  <div class="sbar"><span class="sbar-time">9:41</span><span class="badge b-r">⚠ ALERT</span></div>
+  <div class="ac-top">
+    <div class="ac-ring"><div class="ac-cd" id="ac-timer">10</div></div>
+    <div class="h1" style="margin-bottom:8px">Are You Safe?</div>
+    <div class="body" style="margin-bottom:4px;padding:0 20px">Accident detected · Auto-triggering in <strong id="ac-cd-txt">10</strong>s</div>
+  </div>
+  <div id="sev-card" class="sev-card sev-high" style="margin:0 20px 14px">
+    <div class="sev-header">
+      <div class="sev-icon" id="sev-icon" style="background:rgba(255,45,45,.15)">💥</div>
+      <div><div class="sev-label" id="sev-label" style="color:var(--red)">HIGH SEVERITY</div><div class="sev-sub" id="sev-sub" style="color:var(--text2)">Immediate emergency response required</div></div>
+    </div>
+    <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="xs">Severity Level</span><span class="xs" id="sev-pct" style="color:var(--red);font-weight:700">87%</span></div><div class="sev-meter"><div class="sev-meter-fill" id="sev-fill" style="width:87%;background:var(--red)"></div></div></div>
+    <div class="sev-row"><span class="sev-key">Detection Type</span><span class="sev-val" id="sev-type">Road Accident / Collision</span></div>
+    <div class="sev-row"><span class="sev-key">Confidence Score</span><span class="sev-val" id="sev-motion" style="color:var(--red)">—</span></div>
+    <div class="sev-row"><span class="sev-key">Location</span><span class="sev-val" style="color:var(--teal)" id="sev-loc">Bandra West, Mumbai</span></div>
+    <div class="sev-row"><span class="sev-key">Time</span><span class="sev-val" id="sev-time"></span></div>
+  </div>
+  <div style="padding:0 20px 24px;display:flex;flex-direction:column;gap:10px">
+    <button class="btn btn-p btn-b" onclick="triggerNow()" style="font-size:16px;padding:16px">🚨 TRIGGER EMERGENCY NOW</button>
+    <!-- Cancel Alert — calls backend /cancel -->
+    <button class="btn btn-g btn-b" onclick="markSafe()" style="color:var(--green);border-color:rgba(0,230,118,.3)">✓ I'm Safe — Cancel Alert</button>
+  </div>
+</div>
+
+<!-- ══ EMERGENCY RESPONSE ══ -->
+<div class="screen" id="emergency">
+  <div class="emg-banner">
+    <div class="emg-title"><div style="width:8px;height:8px;border-radius:50%;background:var(--red);animation:blink .8s infinite"></div>EMERGENCY ACTIVE<div class="emg-timer" id="emg-timer">00:00</div></div>
+    <div class="emg-sub" id="emg-sub-detail">AI evidence capturing · Emergency services notified</div>
+  </div>
+  <div class="sb">
+    <div style="padding:14px 16px 0">
+      <div id="emg-sev-pill" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:rgba(255,45,45,.1);border:1px solid rgba(255,45,45,.3);margin-bottom:12px">
+        <span style="font-size:16px">💥</span><span style="font-size:13px;font-weight:700;color:var(--red)" id="emg-sev-lbl">HIGH SEVERITY</span><span style="font-size:11px;color:var(--text2)" id="emg-sev-val">Confidence: —</span>
+      </div>
+    </div>
+    <div style="padding:0 16px">
+      <div class="shdr mb-0" style="margin-bottom:10px"><span class="h3">Response Timeline</span></div>
+      <div class="tl-item"><div class="tl-col"><div class="tl-dot done">✅</div><div class="tl-line done"></div></div><div class="tl-ct"><div class="tl-title">Emergency Detected by AI</div><div class="tl-detail" id="tl-detection-detail">Motion + audio analysis triggered</div></div></div>
+      <div class="tl-item"><div class="tl-col"><div class="tl-dot done">✅</div><div class="tl-line done"></div></div><div class="tl-ct"><div class="tl-title">Family Notified</div><div class="tl-detail" id="tl-family-detail">Emergency contacts alerted</div></div></div>
+      <div class="tl-item"><div class="tl-col"><div class="tl-dot done">✅</div><div class="tl-line done"></div></div><div class="tl-ct"><div class="tl-title">Location Shared</div><div class="tl-detail" id="emg-loc-txt">19.0596° N, 72.8295° E · Bandra West</div></div></div>
+      <div class="tl-item"><div class="tl-col"><div class="tl-dot done">✅</div><div class="tl-line act"></div></div><div class="tl-ct"><div class="tl-title">Hospital Alerted</div><div class="tl-detail" id="tl-hospital-detail">Emergency team on standby</div></div></div>
+      <div class="tl-item"><div class="tl-col"><div class="tl-dot act">🚑</div><div class="tl-line"></div></div><div class="tl-ct"><div class="tl-title">Ambulance Dispatched</div><div class="tl-detail" style="color:var(--amber)" id="tl-amb-detail">ETA calculating... · En route</div></div></div>
+      <div class="tl-item"><div class="tl-col"><div class="tl-dot pend">⏳</div></div><div class="tl-ct"><div class="tl-title" style="color:var(--text3)">Police Notified</div><div class="tl-detail">Pending confirmation...</div></div></div>
+    </div>
+    <div class="amb-card">
+      <div class="amb-hdr">
+        <div class="amb-ico">🚑</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--text)" id="amb-unit">Ambulance Unit</div><div style="font-size:12px;color:var(--text2)">Emergency Medical Response</div></div>
+        <div class="amb-eta" id="amb-eta-lbl">— min</div>
+      </div>
+      <div class="amb-grid">
+        <div class="amb-item"><div class="amb-lbl">Unit ID</div><div class="amb-val" id="amb-id">—</div></div>
+        <div class="amb-item"><div class="amb-lbl">Type</div><div class="amb-val">Advanced Life</div></div>
+        <div class="amb-item"><div class="amb-lbl">Location</div><div class="amb-val" id="emg-location-lbl">—</div></div>
+        <div class="amb-item"><div class="amb-lbl">Status</div><div class="amb-val" style="color:var(--amber)">En Route</div></div>
+      </div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="shdr"><span class="h3">Nearby Responders</span><span class="badge b-g" style="font-size:9px">Available</span></div>
+      <div class="resp-card"><div class="resp-av">AK</div><div class="resp-info"><div class="resp-name">Aditya Kumar</div><div class="resp-meta">First Aid Certified · ETA ~2 min</div></div><div class="resp-dist">0.4 km away</div></div>
+      <div class="resp-card"><div class="resp-av">SM</div><div class="resp-info"><div class="resp-name">Sneha Mehta</div><div class="resp-meta">Nurse · ETA ~4 min</div></div><div class="resp-dist">0.7 km away</div></div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="shdr"><span class="h3">Evidence Captured</span><span class="badge b-r" style="font-size:9px">● LIVE</span></div>
+      <div class="ev-wrap" id="ev-imgs"></div>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-g" style="flex:1;color:var(--teal);border-color:rgba(0,212,170,.3)" onclick="goto('map-screen')">🗺️ Track Ambulance</button>
+        <button class="btn btn-g" style="flex:1" onclick="goto('firstaid')">🩺 First Aid</button>
+      </div>
+      <button class="btn btn-b" onclick="resolveEmergency()" style="background:rgba(0,230,118,.08);color:var(--green);border:1.5px solid rgba(0,230,118,.3)">✓ MARK AS RESOLVED</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAP ══ -->
+<div class="screen" id="map-screen">
+  <div class="sbar"><span class="sbar-time">9:41</span><span class="badge b-a">🔴 LIVE TRACKING</span></div>
+  <div style="padding:8px 16px 8px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <button class="btn btn-g btn-sm" onclick="goto('home')" style="padding:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <div><div class="h2">Live Map</div><div class="sm">Ambulance tracking · Nearby services</div></div>
+  </div>
+  <div id="leaflet-map"></div>
+  <div class="sb" style="padding-top:12px">
+    <div style="padding:0 16px;margin-bottom:10px">
+      <div class="eta-countdown">
+        <div><div class="eta-big" id="eta-count">7:42</div><div class="eta-lbl">Estimated Arrival</div></div>
+        <div style="margin-left:16px;text-align:left"><div style="font-size:13px;font-weight:600;color:var(--text)">Ambulance Unit</div><div style="font-size:12px;color:var(--text2)">Emergency Response</div><div style="font-size:12px;color:var(--amber);margin-top:2px">● En Route</div></div>
+        <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="callAmbulance()">📞 Call</button>
+      </div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="route-card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span class="h3">Route Progress</span><span class="badge b-a" style="font-size:10px">En Route</span></div>
+        <div class="route-row"><div class="route-dot" style="background:var(--red)"></div><div class="route-line"><div class="route-fill"></div></div><div class="route-amb">🚑</div><div class="route-line"><div class="route-fill"></div></div><div class="route-dot" style="background:var(--teal)"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px"><div class="xs" style="color:var(--red)">Hospital</div><div class="xs" style="color:var(--amber)">Moving fast</div><div class="xs" style="color:var(--teal)">Your Location</div></div>
+      </div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:16px">
+      <div class="shdr"><span class="h3">Nearby Hospitals</span></div>
+      <div class="hosp-card"><div class="hosp-cross">🏥</div><div class="hosp-info"><div class="hosp-name">Lilavati Hospital</div><div class="hosp-meta">24/7 Emergency · Bandra West</div><span class="hosp-eta-lbl">ETA ~4 min</span></div><div class="hosp-dist">1.2 km</div></div>
+      <div class="hosp-card"><div class="hosp-cross">🏥</div><div class="hosp-info"><div class="hosp-name">Kokilaben Hospital</div><div class="hosp-meta">ICU · Cardiac · Andheri</div><span class="hosp-eta-lbl">ETA ~9 min</span></div><div class="hosp-dist">3.8 km</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FIRST AID ══ -->
+<div class="screen" id="firstaid">
+  <div class="sbar"><span class="sbar-time">9:41</span></div>
+  <div style="padding:8px 16px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <button class="btn btn-g btn-sm" onclick="goto('home')" style="padding:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <div><div class="h2">First Aid + AI Assistant</div><div class="sm">Voice guidance &amp; emergency QnA</div></div>
+  </div>
+  <div class="sb">
+    <div class="ai-assistant-bar">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="ai-orb" id="ai-orb" onclick="toggleAI()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="white"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--teal)">AI Voice Assistant</div><div class="xs" id="ai-status">Tap orb to ask anything about first aid</div></div>
+        <button class="btn btn-sm" onclick="speakFirstAid()" style="background:rgba(0,212,170,.12);color:var(--teal);border:1px solid rgba(0,212,170,.3);font-size:11px;padding:7px 10px">🔊 Speak</button>
+      </div>
+      <div class="ai-wave" id="ai-wave"></div>
+    </div>
+    <div class="qna-input-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="var(--text3)" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="qna-input" id="qna-inp" type="text" placeholder="Ask: CPR steps? Bleeding control? App help?..." onkeydown="if(event.key==='Enter')sendQnA()"/>
+      <button class="qna-send" onclick="sendQnA()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="qna-chat" id="qna-chat">
+      <div class="qna-msg ai">👋 Hi! I'm your AI emergency assistant. Ask me anything about first aid, CPR, accident response, or how RescueReach works. I can also guide you with voice!</div>
+    </div>
+    <div class="fa-cats">
+      <div class="fa-cat sel" onclick="selFACat(this)"><div class="fa-cat-ico">🚗</div><div class="fa-cat-n">Accidents</div></div>
+      <div class="fa-cat" onclick="selFACat(this)"><div class="fa-cat-ico">❤️</div><div class="fa-cat-n">CPR</div></div>
+      <div class="fa-cat" onclick="selFACat(this)"><div class="fa-cat-ico">🔥</div><div class="fa-cat-n">Burns</div></div>
+      <div class="fa-cat" onclick="selFACat(this)"><div class="fa-cat-ico">🦴</div><div class="fa-cat-n">Fracture</div></div>
+    </div>
+    <div class="fa-guide open">
+      <div class="fa-ghdr" onclick="togFA(this)"><div style="font-size:18px;margin-right:2px">🚗</div><span class="fa-gt">Road Accident Response</span><svg class="fa-chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="fa-gbody">
+        <div class="fa-step"><div class="fa-snum">1</div><div class="fa-stxt">Ensure scene safety — turn on hazard lights, keep bystanders at safe distance.</div></div>
+        <div class="fa-step"><div class="fa-snum">2</div><div class="fa-stxt">Check consciousness — tap shoulder firmly and shout "Are you okay?"</div></div>
+        <div class="fa-step"><div class="fa-snum">3</div><div class="fa-stxt">Call 108 (ambulance) immediately. Do NOT move victim if spinal injury suspected.</div></div>
+        <div class="fa-step"><div class="fa-snum">4</div><div class="fa-stxt">Control visible bleeding with clean cloth — apply firm pressure for 10+ minutes.</div></div>
+        <div class="fa-step"><div class="fa-snum">5</div><div class="fa-stxt">Keep the victim warm and calm. Talk reassuringly until help arrives.</div></div>
+        <div class="fa-warn">⚠️ Never remove helmet or move someone with suspected neck injury unless immediate life threat exists.</div>
+        <button class="btn btn-sm btn-b" onclick="speakGuide('road_accident')" style="background:rgba(0,212,170,.1);color:var(--teal);border:1px solid rgba(0,212,170,.3);margin-top:10px">🔊 Read Aloud</button>
+      </div>
+    </div>
+    <div class="fa-guide">
+      <div class="fa-ghdr" onclick="togFA(this)"><div style="font-size:18px;margin-right:2px">🩸</div><span class="fa-gt">Severe Bleeding Control</span><svg class="fa-chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="fa-gbody">
+        <div class="fa-step"><div class="fa-snum">1</div><div class="fa-stxt">Wear gloves if available. Apply direct pressure with clean cloth or bandage.</div></div>
+        <div class="fa-step"><div class="fa-snum">2</div><div class="fa-stxt">Do NOT remove the cloth if soaked — add more material on top.</div></div>
+        <div class="fa-step"><div class="fa-snum">3</div><div class="fa-stxt">Elevate the injured limb above heart level if possible.</div></div>
+        <div class="fa-step"><div class="fa-snum">4</div><div class="fa-stxt">For limb injuries, apply tourniquet 5cm above wound if bleeding is life-threatening.</div></div>
+        <div class="fa-warn">⚠️ Tourniquet only as last resort. Write application time clearly on patient's skin.</div>
+      </div>
+    </div>
+    <div class="fa-guide">
+      <div class="fa-ghdr" onclick="togFA(this)"><div style="font-size:18px;margin-right:2px">💨</div><span class="fa-gt">CPR — Unconscious / Not Breathing</span><svg class="fa-chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="fa-gbody">
+        <div class="fa-step"><div class="fa-snum">1</div><div class="fa-stxt">Place on firm flat surface. Tilt head back, lift chin to open airway.</div></div>
+        <div class="fa-step"><div class="fa-snum">2</div><div class="fa-stxt">Check for breathing — 10 seconds max. If absent, begin CPR immediately.</div></div>
+        <div class="fa-step"><div class="fa-snum">3</div><div class="fa-stxt">30 chest compressions: Push hard and fast (100-120/min) on center of chest.</div></div>
+        <div class="fa-step"><div class="fa-snum">4</div><div class="fa-stxt">2 rescue breaths: Pinch nose, give 1-second breath, watch chest rise.</div></div>
+        <div class="fa-step"><div class="fa-snum">5</div><div class="fa-stxt">Repeat 30:2 cycle until ambulance arrives or AED available.</div></div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+  </div>
+</div>
+
+<!-- ══ PROFILE ══ -->
+<div class="screen" id="profile-screen">
+  <div class="sbar"><span class="sbar-time">9:41</span></div>
+  <div style="padding:8px 16px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <button class="btn btn-g btn-sm" onclick="goto('home')" style="padding:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <div class="h2">Profile &amp; Settings</div>
+  </div>
+  <div class="sb">
+    <div class="pf-card"><div class="pf-av" id="pf-av">RS</div><div class="pf-name" id="pf-name">Rahul Sharma</div><div class="pf-id">RR-2026-MH-00142</div><div class="pf-badges"><div class="badge b-r">B+ Blood</div><div class="badge b-g">Verified</div><div class="badge b-t">AI Protected</div><div class="badge b-a">Mumbai</div></div></div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="shdr"><span class="h3">Medical Details</span></div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        <div style="padding:12px 15px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border)"><span class="body" style="font-size:13px">Blood Group</span><span class="h3" style="color:var(--red)">B+</span></div>
+        <div style="padding:12px 15px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border)"><span class="body" style="font-size:13px">Age</span><span class="h3">28 yrs</span></div>
+        <div style="padding:12px 15px;display:flex;justify-content:space-between"><span class="body" style="font-size:13px">Allergies</span><span class="h3">None</span></div>
+      </div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="h3" style="margin-bottom:10px">Add Emergency Contact</div>
+      <div class="card">
+        <div class="field"><label class="fl">Name</label><input class="fi" type="text" id="ec-name" placeholder="Contact full name"/></div>
+        <div class="field" style="margin-bottom:0"><label class="fl">Phone</label><input class="fi" type="tel" id="ec-phone" placeholder="+91 98765 43210"/></div>
+        <button class="btn btn-t btn-b" onclick="addContact()" style="margin-top:12px">+ Add Contact</button>
+      </div>
+      <div id="contacts-list" style="margin-top:8px"></div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="h3" style="margin-bottom:10px">Detection Settings</div>
+      <div class="set-item"><div class="set-ico" style="background:rgba(0,212,170,.1)">📡</div><div style="flex:1"><div class="set-lbl">AI Auto-Detection</div><div class="xs">Motion + sound analysis</div></div><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="set-item"><div class="set-ico" style="background:rgba(255,165,0,.1)">🔔</div><div style="flex:1"><div class="set-lbl">Alert Notifications</div><div class="xs">Emergency alerts &amp; SMS</div></div><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="set-item"><div class="set-ico" style="background:rgba(0,230,118,.1)">🔊</div><div style="flex:1"><div class="set-lbl">AI Voice Alerts</div><div class="xs">Loud voice when emergency detected</div></div><div class="tog on" id="voice-toggle" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <div class="h3" style="margin-bottom:10px">Backend Connection</div>
+      <div class="set-item" onclick="checkBackendHealth()"><div class="set-ico" style="background:rgba(0,212,170,.1)">🔗</div><div style="flex:1"><div class="set-lbl">API Server</div><div class="xs" id="be-url-lbl">http://127.0.0.1:8050</div></div><div id="be-pill-prof" class="be-status be-checking" style="font-size:9px;padding:3px 8px">Checking</div></div>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;gap:10px">
+      <button class="btn btn-p" style="flex:1" onclick="goto('home')">Save Settings</button>
+      <button class="btn btn-do" style="flex:1" onclick="goto('splash')">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOCATION MODAL ══ -->
+<div class="modal-ov" id="loc-modal" onclick="closeLocModal(event)">
+  <div class="modal-sheet">
+    <div class="m-handle"></div>
+    <div style="font-size:16px;font-weight:700;color:var(--text);padding:6px 20px 14px">Choose Location</div>
+    <div class="loc-opt" onclick="setLoc('Current Location (GPS)','Your live GPS position · Accuracy: 5m')"><div class="loc-opt-ico" style="background:rgba(0,230,118,.1)">🎯</div><div style="flex:1"><div class="loc-opt-n">Use Current Location</div><div class="loc-opt-a">Enable GPS for live tracking</div></div><div class="ldot"></div></div>
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <div class="loc-opt" onclick="setLoc('Bandra West, Mumbai','Turner Rd, Bandra West, Mumbai 400050')"><div class="loc-opt-ico" style="background:rgba(255,45,45,.1)">📍</div><div style="flex:1"><div class="loc-opt-n">Bandra West, Mumbai</div><div class="loc-opt-a">Turner Rd, Bandra West 400050</div></div><span class="loc-opt-d">0.3 km</span></div>
+    <div class="loc-opt" onclick="setLoc('Andheri East, Mumbai','MIDC, Andheri East, Mumbai 400069')"><div class="loc-opt-ico" style="background:rgba(255,45,45,.1)">📍</div><div style="flex:1"><div class="loc-opt-n">Andheri East, Mumbai</div><div class="loc-opt-a">MIDC, Andheri East 400069</div></div><span class="loc-opt-d">8.1 km</span></div>
+    <div class="loc-opt" onclick="setLoc('Pune, India','Pune, Maharashtra, India')"><div class="loc-opt-ico" style="background:rgba(255,45,45,.1)">📍</div><div style="flex:1"><div class="loc-opt-n">Pune, India</div><div class="loc-opt-a">Pune, Maharashtra</div></div><span class="loc-opt-d">150 km</span></div>
+    <div style="height:28px"></div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast">
+  <div id="ti" style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px"></div>
+  <div><div id="tt" style="font-size:13px;font-weight:700;color:var(--text)"></div><div id="tm" class="xs" style="margin-top:2px"></div></div>
+</div>
+
+<!-- ══ AI VOICE POPUP ══ -->
+<div class="ai-voice-popup" id="ai-popup">
+  <div class="ai-popup-orb">🔊</div>
+  <div class="ai-popup-txt" id="ai-popup-txt">Help is on the way! Emergency services have been notified. Stay calm.</div>
+  <button onclick="closeAIPopup()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px">×</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  FLASK BACKEND INTEGRATION
+// ═══════════════════════════════════════════════════════
+let backendOnline = false;
+
+async function checkBackendHealth() {
+  setBEStatus('checking');
+  try {
+    const r = await fetch('/get_contacts', { method: 'GET' });
+    if (r.ok) {
+      setBEStatus('online');
+      backendOnline = true;
+      return true;
+    }
+  } catch(_) {}
+  setBEStatus('offline');
+  backendOnline = false;
+  return false;
+}
+
+// ── Send recorded audio to Flask /predict ──
+async function sendAudioToFlask(audioBlob) {
+  const fd = new FormData();
+  fd.append('audio', audioBlob, 'recording.webm');
+
+  document.getElementById('sending-pill').classList.add('show');
+  document.getElementById('sending-txt').textContent = 'Sending audio to AI backend...';
+  document.getElementById('loading-fill').classList.add('active');
+
+  try {
+    const res  = await fetch('/predict', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    document.getElementById('sending-pill').classList.remove('show');
+    document.getElementById('loading-fill').classList.remove('active');
+
+    if (data.error) {
+      showToast('❌', 'Backend Error', data.error, 'rgba(255,45,45,.15)');
+      return null;
+    }
+    return data;
+  } catch(e) {
+    document.getElementById('sending-pill').classList.remove('show');
+    document.getElementById('loading-fill').classList.remove('active');
+    showToast('❌', 'Connection Error', 'Cannot reach backend', 'rgba(255,45,45,.15)');
+    return null;
+  }
+}
+
+function setBEStatus(s) {
+  const pills = [
+    document.getElementById('be-pill'),
+    document.getElementById('be-pill-mon'),
+    document.getElementById('be-pill-prof'),
+  ];
+  pills.forEach(p => {
+    if (!p) return;
+    p.className = `be-status be-${s}`;
+    p.textContent = s === 'online' ? '⬤ AI Active (Local)'
+      : s === 'offline' ? '⬤ Offline'
+      : '⬤ Starting...';
+  });
+}
+
+// ── Pure browser accident detection using Web Audio API ──
+let micStream = null, audioCtx = null, analyser = null, processor = null;
+let isLiveDetecting = false, micBuffer = [];
+const MIC_SAMPLE_RATE = 16000;
+const MIC_CHUNK_SAMPLES = 16000; // 1 second of audio
+
+// ══════════════════════════════════════════════════
+//  DETECTION STATE — cooldown + pause + calibration
+// ══════════════════════════════════════════════════
+let loudChunkCount = 0;
+let lastTriggered = 0;
+let detectionPaused = false;
+const COOLDOWN_MS = 45000;   // 45s hard cooldown after any alert
+const CONFIRM_NEEDED = 2;    // 2 consecutive loud chunks needed
+
+// Ambient calibration
+let baselineRMS = 0.02;
+let baselineBuf = [];
+let calibrated = false;
+
+// Motion sensor state
+let motionDetected = false;
+let lastMotionTime = 0;
+let motionMagnitude = 0;
+
+// ── Start device motion ──
+function startMotionDetection() {
+  if (!window.DeviceMotionEvent) {
+    console.log('DeviceMotion not supported');
+    return;
+  }
+  // iOS 13+ needs permission
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(r => {
+      if (r === 'granted') window.addEventListener('devicemotion', onMotion);
+    }).catch(() => {});
+  } else {
+    window.addEventListener('devicemotion', onMotion);
+  }
+}
+
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity;
+  if (!a) return;
+  const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+  // Sudden jolt > 25 m/s² = impact
+  if (mag > 25) {
+    motionDetected = true;
+    motionMagnitude = mag;
+    lastMotionTime = Date.now();
+    console.log('Motion impact detected:', mag.toFixed(1));
+    // Update UI
+    const el = document.getElementById('sev-motion');
+    if (el) el.textContent = mag.toFixed(1) + ' m/s² impact';
+    showToast('📳', 'Impact Detected', 'Strong motion: ' + mag.toFixed(1) + ' m/s²', 'rgba(255,165,0,.15)');
+    // If mic also suspicious → trigger immediately
+    if (loudChunkCount >= 1 && !detectionPaused && (Date.now() - lastTriggered) > COOLDOWN_MS) {
+      lastTriggered = Date.now();
+      loudChunkCount = 0;
+      detectionPaused = true;
+      triggerLocalAlert(0.92, true);
+    }
+  }
+  // Reset after 3 seconds
+  if (Date.now() - lastMotionTime > 3000) motionDetected = false;
+}
+
+function analyzeAudioChunk(chunk) {
+  const n = chunk.length;
+
+  // RMS energy
+  let sumSq = 0;
+  for (let i = 0; i < n; i++) sumSq += chunk[i] * chunk[i];
+  const rms = Math.sqrt(sumSq / n);
+
+  // Peak
+  let peak = 0;
+  for (let i = 0; i < n; i++) if (Math.abs(chunk[i]) > peak) peak = Math.abs(chunk[i]);
+
+  // ZCR
+  let zc = 0;
+  for (let i = 1; i < n; i++) if ((chunk[i]>=0) !== (chunk[i-1]>=0)) zc++;
+  const zcr = zc / n;
+
+  // 16 windows for energy shape
+  const W = 16, ws = Math.floor(n / W);
+  const wins = [];
+  for (let w = 0; w < W; w++) {
+    let s = 0;
+    for (let i = w*ws; i < (w+1)*ws; i++) s += chunk[i]*chunk[i];
+    wins.push(Math.sqrt(s / ws));
+  }
+
+  // Peak window
+  let peakWin = 0;
+  for (let w = 1; w < W; w++) if (wins[w] > wins[peakWin]) peakWin = w;
+
+  // Max jump between adjacent windows
+  let maxJump = 0;
+  for (let w = 1; w < W; w++) {
+    const j = wins[w] / (wins[w-1] + 0.0001);
+    if (j > maxJump) maxJump = j;
+  }
+
+  // Decay: energy right after peak vs later
+  const peakE = wins[peakWin] + 0.0001;
+  let afterE = 0, cnt = 0;
+  for (let w = peakWin + 2; w < W; w++) { afterE += wins[w]; cnt++; }
+  const sharpDecay = cnt > 0 ? peakE / (afterE/cnt + 0.0001) : 1;
+
+  // Crest factor
+  const crest = peak / (rms + 0.001);
+
+  // ── Calibrate baseline ──
+  if (!calibrated) {
+    baselineBuf.push(rms);
+    if (baselineBuf.length >= 4) {
+      baselineRMS = baselineBuf.reduce((a,b)=>a+b,0) / baselineBuf.length;
+      baselineRMS = Math.max(baselineRMS, 0.001);
+      calibrated = true;
+      console.log('Baseline:', baselineRMS.toFixed(5));
+      document.getElementById('radar-sub').textContent = 'AI ready — monitoring for accidents';
+      const s = document.getElementById('mic-btn-sub');
+      if (s) s.textContent = 'Listening...';
+      document.getElementById('radar-title').textContent = 'AI ACTIVE · MONITORING';
+      showToast('✅', 'AI Calibrated', 'Ready — monitoring for accidents', 'rgba(0,212,170,.15)');
+    }
+    return { prob: 0, rms, peak };
+  }
+
+  const snr = rms / baselineRMS;
+
+  // Log always so we can tune
+  console.log('SNR:' + snr.toFixed(1)
+    + ' Crest:' + crest.toFixed(1)
+    + ' ZCR:' + zcr.toFixed(3)
+    + ' Jump:' + maxJump.toFixed(1)
+    + ' Decay:' + sharpDecay.toFixed(1)
+    + ' Peak@win:' + peakWin);
+
+  // ── Hard gate: must be meaningfully louder than ambient ──
+  if (snr < 3) return { prob: 0, rms, peak };
+
+  // ── Reject pure speech (sustained ZCR pattern) ──
+  // Only reject if VERY clearly speech: high ZCR + low crest + no jump
+  if (zcr > 0.20 && crest < 4 && maxJump < 3) {
+    console.log('REJECT speech');
+    return { prob: 0, rms, peak };
+  }
+
+  // ── Score ──
+  // Key insight from your data:
+  // Crash gives SNR~6, Crest~3-5, Decay~1.3
+  // We need to detect this — so weight SNR+Jump heavily, relax crest
+  let score = 0;
+
+  // SNR — louder than ambient is the primary signal on laptop mic
+  if (snr >= 3)  score += 0.15;
+  if (snr >= 5)  score += 0.15;
+  if (snr >= 10) score += 0.10;
+  if (snr >= 20) score += 0.10;
+
+  // Sudden jump in any window — best indicator of impact
+  if (maxJump >= 2) score += 0.10;
+  if (maxJump >= 4) score += 0.15;
+  if (maxJump >= 8) score += 0.10;
+
+  // Crest factor — crash gives moderate crest on laptop mic
+  if (crest >= 3) score += 0.10;
+  if (crest >= 6) score += 0.10;
+  if (crest >= 10) score += 0.05;
+
+  // Decay — even small decay helps
+  if (sharpDecay >= 1.5) score += 0.05;
+  if (sharpDecay >= 3)   score += 0.10;
+
+  // Low ZCR bonus (impact-like)
+  if (zcr < 0.10) score += 0.05;
+
+  // Speech-like penalty — reduce score if it looks like talking
+  if (zcr > 0.15 && crest < 4) score -= 0.20;
+
+  // Motion sensor = definitive confirmation
+  if (motionDetected) score += 0.35;
+
+  const prob = Math.min(1, Math.max(0, score));
+  if (prob > 0.3) console.log('SCORE:' + prob.toFixed(2) + (prob >= 0.65 ? ' *** ACCIDENT ***' : ' (building...)'));
+  return { prob, rms, peak };
+}
+
+function processChunkLocally(chunk) {
+  if (detectionPaused) return;
+  if ((Date.now() - lastTriggered) < COOLDOWN_MS) return;
+
+  const { prob, rms } = analyzeAudioChunk(chunk);
+  const pct = Math.round(prob * 100);
+
+  // Update UI
+  const probEl = document.getElementById('last-prob');
+  if (probEl) probEl.textContent = pct + '%';
+  const dpEl = document.getElementById('dp-accident');
+  if (dpEl) dpEl.style.width = pct + '%';
+  const dcEl = document.getElementById('dc-accident');
+  if (dcEl) dcEl.textContent = pct + '%';
+
+  const db = Math.max(0, Math.round(20 * Math.log10(rms + 1e-9) + 90));
+  const dbEl = document.getElementById('db-lv');
+  if (dbEl) dbEl.textContent = db + ' dB';
+
+  if (prob >= 0.65) {
+    loudChunkCount++;
+    console.log('Suspect ' + loudChunkCount + '/' + CONFIRM_NEEDED);
+  } else {
+    loudChunkCount = 0;
+  }
+
+  if (loudChunkCount >= CONFIRM_NEEDED) {
+    lastTriggered = Date.now();
+    loudChunkCount = 0;
+    detectionPaused = true;
+    triggerLocalAlert(prob, motionDetected);
+  }
+}
+
+async function startMicDetection() {
+  if (isLiveDetecting) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('❌', 'Not Supported', 'Microphone not available', 'rgba(255,45,45,.15)');
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      video: false
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaStreamSource(micStream);
+    processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    micBuffer = [];
+    loudChunkCount = 0;
+    detectionPaused = false;
+    calibrated = false;
+    baselineBuf = [];
+    lastTriggered = 0;
+    startMotionDetection();
+
+    processor.onaudioprocess = (e) => {
+      if (!isLiveDetecting) return;
+      const chunk = Array.from(e.inputBuffer.getChannelData(0));
+      micBuffer.push(...chunk);
+      updateWaveformFromMic(e.inputBuffer.getChannelData(0));
+
+      if (micBuffer.length >= MIC_CHUNK_SAMPLES) {
+        const toSend = micBuffer.splice(0, MIC_CHUNK_SAMPLES);
+        processChunkLocally(toSend);
+      }
+    };
+
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+    isLiveDetecting = true;
+
+    // Update UI
+    const btn = document.getElementById('mic-btn');
+    const sub = document.getElementById('mic-btn-sub');
+    if (btn) btn.classList.add('active-mic');
+    if (sub) sub.textContent = 'Calibrating...';
+    document.getElementById('radar-title').textContent = 'AI CALIBRATING...';
+    document.getElementById('radar-sub').textContent = 'Be quiet 4 secs — learning ambient noise';
+    document.getElementById('mon-sub').textContent = 'AI + Motion sensors active';
+    showToast('🎤', 'AI Starting', 'Stay quiet 4 sec — calibrating ambient noise', 'rgba(0,212,170,.15)');
+  } catch (err) {
+    showToast('❌', 'Mic Error', err.message || 'Cannot access microphone', 'rgba(255,45,45,.15)');
+  }
+}
+
+function processChunkLocally(chunk) {
+  // Hard gates — skip if paused or in cooldown
+  if (detectionPaused) return;
+  if ((Date.now() - lastTriggered) < COOLDOWN_MS) return;
+
+  const { prob, rms, peak } = analyzeAudioChunk(chunk);
+  const pct = Math.round(prob * 100);
+
+  // Update UI
+  const probEl = document.getElementById('last-prob');
+  if (probEl) probEl.textContent = pct + '%';
+  const dpEl = document.getElementById('dp-accident');
+  if (dpEl) dpEl.style.width = pct + '%';
+  const dcEl = document.getElementById('dc-accident');
+  if (dcEl) dcEl.textContent = pct + '%';
+
+  const db = Math.max(0, Math.round(20 * Math.log10(rms + 1e-9) + 90));
+  const dbEl = document.getElementById('db-lv');
+  if (dbEl) dbEl.textContent = db + ' dB';
+
+  if (prob >= 0.65) {
+    loudChunkCount++;
+    console.log('Suspect chunk', loudChunkCount, '/', CONFIRM_NEEDED, '| prob:', prob.toFixed(2));
+  } else {
+    if (loudChunkCount > 0) console.log('Reset — quiet chunk');
+    loudChunkCount = 0;
+  }
+
+  if (loudChunkCount >= CONFIRM_NEEDED) {
+    lastTriggered = Date.now();
+    loudChunkCount = 0;
+    detectionPaused = true;
+    triggerLocalAlert(prob, motionDetected);
+  }
+}
+
+function triggerLocalAlert(prob, withMotion) {
+  const pct = Math.round(prob * 100);
+  const loc = document.getElementById('loc-area')?.textContent || 'Your Location';
+  const motionInfo = withMotion ? motionMagnitude.toFixed(1) + ' m/s² + ' : '';
+
+  document.getElementById('sev-time').textContent = new Date().toLocaleTimeString();
+  document.getElementById('sev-loc').textContent = loc;
+  document.getElementById('sev-motion').textContent = motionInfo + pct + '% AI confidence';
+  setSeverity('high');
+
+  document.getElementById('amb-unit').textContent = 'MH-AMB-042';
+  document.getElementById('amb-id').textContent = 'MH-AMB-042';
+  document.getElementById('amb-eta-lbl').textContent = '6 min';
+  document.getElementById('tl-amb-detail').textContent = 'ETA 6 min · Western Express Highway';
+  document.getElementById('emg-location-lbl').textContent = loc;
+  document.getElementById('emg-sev-val').textContent = 'AI Confidence: ' + pct + '%';
+  document.getElementById('emg-loc-txt').textContent = '19.0596° N, 72.8295° E · ' + loc;
+
+  speakLoud('Emergency detected! Accident detected at your location. Alerting emergency services. Stay calm!');
+  showAIPopup('🚨 Accident detected! Emergency services are being contacted. Stay calm, do not move if injured.');
+  goto('alert-confirm');
+  startAlertCD();
+}
+
+function stopMicDetection() {
+  isLiveDetecting = false;
+  micBuffer = [];
+  loudChunkCount = 0;
+  if (processor) { processor.disconnect(); processor = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+
+  const btn = document.getElementById('mic-btn');
+  const sub = document.getElementById('mic-btn-sub');
+  if (btn) btn.classList.remove('active-mic');
+  if (sub) sub.textContent = 'Tap to start';
+  document.getElementById('radar-title').textContent = 'ACTIVELY MONITORING';
+  document.getElementById('radar-sub').textContent = 'Background service · AI sound analysis running';
+  document.getElementById('mon-sub').textContent = 'Background monitoring active';
+  showToast('⏹', 'Mic Stopped', 'Detection paused', 'rgba(255,165,0,.15)');
+}
+
+function toggleMicDetection() {
+  if (isLiveDetecting) stopMicDetection();
+  else startMicDetection();
+}
+
+function updateWaveformFromMic(chunk) {
+  const bars = document.querySelectorAll('#wave-bars .wbar');
+  if (!bars.length) return;
+  const step = Math.floor(chunk.length / bars.length);
+  bars.forEach((b, i) => {
+    const sample = Math.abs(chunk[i * step] || 0);
+    const h = Math.min(100, sample * 300 + 4);
+    b.style.height = h + '%';
+    b.style.background = h > 70 ? 'var(--red)' : h > 40 ? 'var(--amber)' : 'var(--teal)';
+  });
+}
+
+// Simulate button — send dummy WAV to Flask backend OR local fallback
+async function sendDummyAudioToBackend() {
+  showToast('⚡', 'Simulating', 'Sending test audio to AI...', 'rgba(255,45,45,.15)');
+
+  if (backendOnline) {
+    // Generate a short WAV blob (PCM sine burst = crash-like sound)
+    const SR = 16000, dur = 2;
+    const N  = SR * dur;
+    const buf = new ArrayBuffer(44 + N * 2);
+    const view = new DataView(buf);
+    const writeStr = (off, s) => { for(let i=0;i<s.length;i++) view.setUint8(off+i, s.charCodeAt(i)); };
+    writeStr(0,'RIFF'); view.setUint32(4, 36+N*2, true);
+    writeStr(8,'WAVE'); writeStr(12,'fmt ');
+    view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+    view.setUint32(24,SR,true); view.setUint32(28,SR*2,true);
+    view.setUint16(32,2,true); view.setUint16(34,16,true);
+    writeStr(36,'data'); view.setUint32(40,N*2,true);
+    for(let i=0;i<N;i++){
+      const t = i/SR;
+      // Impact burst: high amplitude with noise
+      const amp = Math.exp(-t*3) * 0.9;
+      const s = amp * (Math.sin(2*Math.PI*300*t) + (Math.random()-0.5)*0.8);
+      view.setInt16(44+i*2, Math.max(-32767, Math.min(32767, s*32767)), true);
+    }
+    const blob = new Blob([buf], { type: 'audio/wav' });
+    const result = await sendAudioToFlask(blob);
+    if (result) {
+      const pct = result.emergency_prob;
+      const probEl = document.getElementById('last-prob');
+      if (probEl) probEl.textContent = pct + '%';
+      const dpEl = document.getElementById('dp-accident');
+      if (dpEl) dpEl.style.width = pct + '%';
+      const dcEl = document.getElementById('dc-accident');
+      if (dcEl) dcEl.textContent = pct + '%';
+      if (result.label === 1) {
+        detectionPaused = true;
+        triggerLocalAlert(result.emergency_prob / 100, false);
+        showToast('🚨', 'Emergency Detected!', 'Confidence: '+pct+'%', 'rgba(255,45,45,.15)');
+      } else {
+        showToast('✅', 'Normal Sound', 'No emergency detected ('+pct+'% emergency)', 'rgba(0,212,170,.15)');
+      }
+    }
+  } else {
+    // Local fallback
+    if (!isLiveDetecting) {
+      showToast('⚠️', 'Start Mic First', 'Tap Real Mic first, or backend is offline', 'rgba(255,165,0,.15)');
+      return;
+    }
+    const loud = new Array(MIC_CHUNK_SAMPLES).fill(0).map((_,i) => {
+      const t = i / MIC_SAMPLE_RATE;
+      return 0.85 * Math.sin(2*Math.PI*440*t) + (Math.random()*0.3-0.15);
+    });
+    processChunkLocally(loud);
+    setTimeout(() => processChunkLocally(loud), 1100);
+  }
+}
+
+function cancelAlertOnBackend() { /* no-op */ }
+function setSendingState() {}
+function setLoadingActive() {}
+
+// Auto-start mic on first user interaction (browser requires this)
+let autoStartDone = false;
+function tryAutoStart() {
+  if (!autoStartDone && !isLiveDetecting) {
+    autoStartDone = true;
+    startMicDetection();
+  }
+}
+['click','touchstart','keydown'].forEach(ev =>
+  document.addEventListener(ev, tryAutoStart, { once: true })
+);
+
+// ═══════════════════════════════════════════════════════
+//  STATE & NAVIGATION
+// ═══════════════════════════════════════════════════════
+let curScreen='splash', isMonitoring=true, waveInt=null, alertInt=null, emgInt=null, emgSec=0;
+let etaInt=null, etaSec=462, leafMap=null, ambMarker=null, ambLat=19.07, ambLng=72.82;
+const ULat=19.0596, ULng=72.8295;
+let aiSpeaking=false, speechSynth=window.speechSynthesis;
+
+function goto(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); el.scrollTop = 0; }
+  curScreen = id;
+  if (id === 'map-screen') initMap();
+  if (id === 'monitor') startWave();
+  if (id === 'emergency') { startEmgTimer(); startEvidence(); }
+  if (id === 'map-screen') startETA();
+}
+function setNav(el, id) {
+  document.querySelectorAll('.bni').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  goto(id);
+}
+function quickLogin() { document.getElementById('home-name').textContent='Rahul Sharma'; goto('home'); }
+
+// ─── ONBOARDING ───
+let obS=1;
+function obNext(s) {
+  document.querySelectorAll('.ob-step').forEach(x => x.classList.remove('active'));
+  document.getElementById('obs'+s).classList.add('active');
+  document.getElementById('ob-snum').textContent = s;
+  for (let i=1; i<=3; i++) document.getElementById('op'+i).classList.toggle('done', i<=s);
+  obS = s;
+}
+function selBG(el) { document.querySelectorAll('.bo').forEach(b=>b.classList.remove('sel')); el.classList.add('sel'); }
+function completeReg() {
+  const n = document.getElementById('rn').value || 'User';
+  const init = n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);
+  ['home-name','pf-name'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=n;});
+  ['home-av','pf-av'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=init;});
+  goto('home');
+  showToast('✅','Profile Created!','Welcome to RescueReach AI','rgba(0,230,118,.15)');
+}
+
+// ─── LOCATION ───
+function openLocModal() { document.getElementById('loc-modal').classList.add('open'); }
+function closeLocModal(e) { if(e.target===document.getElementById('loc-modal'))document.getElementById('loc-modal').classList.remove('open'); }
+function setLoc(area, full) {
+  document.getElementById('loc-area').textContent = area;
+  document.getElementById('loc-full').textContent = full + ' · GPS Active';
+  document.getElementById('loc-modal').classList.remove('open');
+  showToast('📍','Location Set',area,'rgba(0,212,170,.15)');
+}
+
+// ─── MONITORING ───
+function startWave() {
+  const wrap = document.getElementById('wave-bars');
+  if (!wrap) return;
+  if (wrap.children.length === 0) {
+    for (let i=0; i<42; i++) {
+      const b = document.createElement('div'); b.className='wbar'; b.style.height='8%'; wrap.appendChild(b);
+    }
+  }
+  if (isLiveDetecting) return; // don't override mic-driven animation
+  clearInterval(waveInt);
+  waveInt = setInterval(() => {
+    if (isLiveDetecting) return;
+    const bars = wrap.querySelectorAll('.wbar');
+    const db = 30 + Math.floor(Math.random()*35);
+    const el = document.getElementById('db-lv');
+    if (el) el.textContent = db + ' dB';
+    bars.forEach(b => {
+      const h = Math.random()*88+4;
+      b.style.height = h+'%';
+      b.style.background = h>80?'var(--red)':h>60?'var(--amber)':'var(--teal)';
+    });
+  }, 110);
+}
+function toggleMonitor() {
+  isMonitoring = !isMonitoring;
+  const btn = document.getElementById('pause-btn');
+  const badge = document.getElementById('mon-badge');
+  if (isMonitoring) {
+    btn.textContent='⏸ PAUSE MONITORING'; badge.textContent='● MONITORING'; badge.className='badge b-t';
+  } else {
+    btn.textContent='▶ RESUME MONITORING'; badge.textContent='⏸ PAUSED'; badge.className='badge b-a';
+    if (isLiveDetecting) stopMicDetection();
+  }
+}
+
+// ─── SEVERITY ───
+function setSeverity(level) {
+  const cfgs = {
+    high:{label:'HIGH SEVERITY',sub:'Immediate emergency response required',icon:'💥',color:'var(--red)',pct:'87%',type:'Road Accident / Collision',fill:'87%',fillBg:'var(--red)',cardCls:'sev-high'},
+    medium:{label:'MEDIUM SEVERITY',sub:'Moderate emergency — response required',icon:'⚠️',color:'var(--amber)',pct:'58%',type:'Vehicle Collision',fill:'58%',fillBg:'var(--amber)',cardCls:'sev-med'},
+    low:{label:'LOW SEVERITY',sub:'Minor incident — monitor situation',icon:'ℹ️',color:'var(--green)',pct:'25%',type:'Minor Fall Detected',fill:'25%',fillBg:'var(--green)',cardCls:'sev-low'}
+  };
+  const c = cfgs[level] || cfgs.high;
+  document.getElementById('sev-card').className = 'sev-card ' + c.cardCls;
+  document.getElementById('sev-icon').textContent = c.icon;
+  document.getElementById('sev-label').textContent = c.label;
+  document.getElementById('sev-label').style.color = c.color;
+  document.getElementById('sev-sub').textContent = c.sub;
+  document.getElementById('sev-pct').textContent = c.pct;
+  document.getElementById('sev-pct').style.color = c.color;
+  document.getElementById('sev-fill').style.width = c.fill;
+  document.getElementById('sev-fill').style.background = c.fillBg;
+  document.getElementById('sev-type').textContent = c.type;
+  const lbl = document.getElementById('emg-sev-lbl');
+  if (lbl) { lbl.textContent = c.label; lbl.style.color = c.color; }
+}
+
+// ─── ALERT COUNTDOWN ───
+let alertCd = 10;
+function startAlertCD() {
+  clearInterval(alertInt); alertCd=10; updAlertUI();
+  alertInt = setInterval(() => {
+    alertCd--;
+    updAlertUI();
+    if (alertCd <= 0) { clearInterval(alertInt); triggerNow(); }
+  }, 1000);
+}
+function updAlertUI() {
+  const t = document.getElementById('ac-timer');
+  const tc = document.getElementById('ac-cd-txt');
+  if (t) t.textContent = alertCd;
+  if (tc) tc.textContent = alertCd;
+}
+function triggerNow() {
+  clearInterval(alertInt);
+  goto('emergency');
+  speakLoud('Help is on the way! Emergency services have been notified. Ambulance is being dispatched. Stay calm and do not move if you are injured.');
+  showAIPopup('🚑 Help is on the way! Ambulance dispatched. Family has been notified.');
+}
+function markSafe() {
+  cancelAlertOnBackend();
+  clearInterval(alertInt);
+  // DON'T stop mic — just reset state and go back to monitor
+  goto('monitor');
+  showToast('✅', 'You\'re Safe!', 'Alert cancelled — resuming in 10s', 'rgba(0,230,118,.15)');
+  speakLoud('Great. Emergency alert cancelled. Resuming monitoring shortly.');
+  // Reset ALL detection state
+  loudChunkCount = 0;
+  motionDetected = false;
+  detectionPaused = true;
+  // Resume after 10 seconds with fresh calibration
+  setTimeout(() => {
+    lastTriggered = 0;
+    loudChunkCount = 0;
+    calibrated = false;
+    baselineBuf = [];
+    detectionPaused = false;
+    document.getElementById('radar-title').textContent = 'AI RECALIBRATING...';
+    document.getElementById('radar-sub').textContent = 'Stay quiet — measuring ambient noise';
+    showToast('🎤', 'Monitoring Resumed', 'Recalibrating for 4 seconds...', 'rgba(0,212,170,.15)');
+  }, 10000);
+}
+function resolveEmergency() {
+  clearInterval(emgInt);
+  if (isLiveDetecting) stopMicDetection();
+  goto('home');
+  showToast('✅','Emergency Resolved','Stay safe!','rgba(0,230,118,.15)');
+}
+
+// ─── EMERGENCY TIMER ───
+function startEmgTimer() {
+  clearInterval(emgInt); emgSec=0;
+  emgInt = setInterval(() => {
+    emgSec++;
+    const m = String(Math.floor(emgSec/60)).padStart(2,'0');
+    const s = String(emgSec%60).padStart(2,'0');
+    const el = document.getElementById('emg-timer');
+    if (el) el.textContent = m+':'+s;
+  }, 1000);
+}
+
+// ─── EVIDENCE ───
+function startEvidence() {
+  const wrap = document.getElementById('ev-imgs');
+  if (!wrap) return;
+  wrap.innerHTML='';
+  for (let i=0; i<5; i++) {
+    setTimeout(() => {
+      const t=document.createElement('div'); t.className='ev-thumb';
+      const icons=['📸','🎥','📷','🔴','📸'];
+      t.innerHTML=`<span style="font-size:22px">${icons[i]}</span><div class="ev-time">${new Date().toLocaleTimeString().slice(0,5)}</div>`;
+      wrap.appendChild(t);
+    }, i*1000);
+  }
+}
+
+// ─── MAP ───
+function initMap() {
+  if (leafMap) { leafMap.invalidateSize(); return; }
+  const el = document.getElementById('leaflet-map');
+  if (!el||!window.L) return;
+  try {
+    leafMap = L.map('leaflet-map',{zoomControl:true,attributionControl:false}).setView([ULat,ULng],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(leafMap);
+    const ui = L.divIcon({html:'<div style="width:16px;height:16px;background:#00d4aa;border-radius:50%;border:3px solid white;box-shadow:0 0 14px rgba(0,212,170,.8)"></div>',iconSize:[16,16],className:''});
+    L.marker([ULat,ULng],{icon:ui}).addTo(leafMap).bindPopup('📍 You are here').openPopup();
+    const ai2 = L.divIcon({html:'<div style="font-size:28px">🚑</div>',iconSize:[34,34],className:''});
+    ambMarker = L.marker([ambLat,ambLng],{icon:ai2}).addTo(leafMap).bindPopup('🚑 Ambulance en route');
+    [[19.0550,72.8310,'Lilavati Hospital'],[19.1197,72.8464,'Kokilaben Hospital']].forEach(([la,ln,nm])=>{
+      const hi = L.divIcon({html:`<div style="background:#ff2d2d;color:white;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px">+</div>`,iconSize:[30,30],className:''});
+      L.marker([la,ln],{icon:hi}).addTo(leafMap).bindPopup(`🏥 ${nm}`);
+    });
+    moveAmb();
+  } catch(e) { console.log('Map error:',e); }
+}
+function moveAmb() {
+  if (!ambMarker) return;
+  setInterval(() => {
+    ambLat += (ULat-ambLat)*0.04+(Math.random()-.5)*0.001;
+    ambLng += (ULng-ambLng)*0.04+(Math.random()-.5)*0.001;
+    ambMarker.setLatLng([ambLat,ambLng]);
+  }, 2000);
+}
+function startETA() {
+  clearInterval(etaInt);
+  etaInt = setInterval(() => {
+    if (etaSec>0) etaSec--;
+    const m=String(Math.floor(etaSec/60)).padStart(2,'0');
+    const s=String(etaSec%60).padStart(2,'0');
+    const el=document.getElementById('eta-count');
+    if (el) el.textContent=m+':'+s;
+  },1000);
+}
+function callAmbulance() {
+  showToast('📞','Calling Ambulance','Emergency Response Unit · En Route','rgba(79,195,247,.15)');
+  speakLoud('Calling ambulance unit.');
+}
+
+// ─── FIRST AID AI VOICE ───
+const faGuides={
+  road_accident:'Step 1. Ensure scene safety. Turn on hazard lights. Keep bystanders away. Step 2. Check consciousness by tapping the shoulder firmly and calling out. Step 3. Call 108 immediately. Do not move the victim if spinal injury is suspected. Step 4. Control bleeding with firm pressure for 10 minutes. Step 5. Keep the victim warm and calm until help arrives.',
+  bleeding:'Step 1. Wear gloves if available. Apply direct pressure with clean cloth. Step 2. Do not remove cloth if soaked. Add more material on top. Step 3. Elevate the injured limb above heart level. Step 4. Apply tourniquet 5 centimeters above wound only if bleeding is life threatening.',
+  cpr:'Step 1. Place person on firm flat surface. Tilt head back, lift chin. Step 2. Check for breathing for 10 seconds. If absent, begin CPR. Step 3. Perform 30 chest compressions pushing hard and fast at 100 to 120 per minute. Step 4. Give 2 rescue breaths, pinch nose and blow for 1 second. Step 5. Repeat 30 to 2 cycle until ambulance arrives.'
+};
+const qnaKnowledge={
+  'cpr':faGuides.cpr,'bleeding':faGuides.bleeding,'accident':faGuides.road_accident,
+  'how does rescuereach work':'RescueReach AI uses your phone\'s microphone to detect accident sounds. When a crash is detected, it alerts your emergency contacts, shares your GPS location, and dispatches the nearest ambulance — all automatically.',
+  'what is rescuereach':'RescueReach AI is a real-time accident detection and emergency response platform. It monitors for accident sounds 24/7 and instantly connects you to emergency services.',
+  'sos':'Go to the Monitor screen and tap Simulate or use Real Mic detection. The app will alert your contacts, share location, and dispatch an ambulance.',
+  'ambulance':'When an emergency is detected, RescueReach automatically dispatches the nearest ambulance. Track it live on the Map screen.',
+  'backend':'The AI backend runs on FastAPI at port 8050. It uses YAMNet deep learning embeddings to classify audio as accident or normal in real-time.'
+};
+
+function speakLoud(text) {
+  if (!speechSynth) return;
+  speechSynth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.volume=1; u.rate=0.95; u.pitch=1;
+  const voices = speechSynth.getVoices();
+  const en = voices.find(v=>v.lang.startsWith('en')&&v.name.includes('Google'))||voices.find(v=>v.lang.startsWith('en'))||voices[0];
+  if (en) u.voice=en;
+  speechSynth.speak(u);
+}
+function speakGuide(key) {
+  const txt = faGuides[key]||'Guide not found.';
+  startAIWave();
+  document.getElementById('ai-status').textContent='Reading guide aloud...';
+  document.getElementById('ai-orb').classList.add('speaking');
+  speakLoud(txt);
+  setTimeout(()=>{stopAIWave();document.getElementById('ai-orb').classList.remove('speaking');document.getElementById('ai-status').textContent='Done. Ask another question!';},12000);
+}
+function speakFirstAid() {
+  speakLoud('Welcome to the AI First Aid Assistant. I can guide you through accident response, CPR, bleeding control, and more. Type your question or tap a category to get started.');
+  startAIWave();
+  document.getElementById('ai-status').textContent='Speaking... tap orb to stop';
+  document.getElementById('ai-orb').classList.add('speaking');
+  setTimeout(()=>{stopAIWave();document.getElementById('ai-orb').classList.remove('speaking');document.getElementById('ai-status').textContent='Ask me anything!';},6000);
+}
+function toggleAI() {
+  if (aiSpeaking) { speechSynth.cancel();stopAIWave();document.getElementById('ai-orb').classList.remove('speaking');document.getElementById('ai-status').textContent='Tap orb to ask anything';aiSpeaking=false; }
+  else { speakFirstAid();aiSpeaking=true; }
+}
+function sendQnA() {
+  const inp = document.getElementById('qna-inp');
+  const chat = document.getElementById('qna-chat');
+  const q = (inp.value||'').trim();
+  if (!q) return;
+  const um=document.createElement('div'); um.className='qna-msg user'; um.textContent=q; chat.appendChild(um);
+  inp.value=''; chat.scrollTop=chat.scrollHeight;
+  const ql = q.toLowerCase();
+  let ans='I\'m not sure about that specific question. For immediate emergencies, call 108. I can help with CPR, bleeding control, accident response, or questions about RescueReach!';
+  for (const [key,val] of Object.entries(qnaKnowledge)) { if (ql.includes(key)) { ans=val; break; } }
+  const typ=document.createElement('div'); typ.className='qna-msg ai'; typ.innerHTML='<span style="color:var(--teal)">Typing...</span>'; chat.appendChild(typ); chat.scrollTop=chat.scrollHeight;
+  setTimeout(()=>{typ.textContent=ans;chat.scrollTop=chat.scrollHeight;startAIWave();document.getElementById('ai-orb').classList.add('speaking');document.getElementById('ai-status').textContent='Responding...';speakLoud(ans);setTimeout(()=>{stopAIWave();document.getElementById('ai-orb').classList.remove('speaking');document.getElementById('ai-status').textContent='Ask another question!';},ans.length*60);},600);
+}
+let aiWaveInt=null;
+function startAIWave() {
+  const wave=document.getElementById('ai-wave');
+  if (!wave) return;
+  if (wave.children.length===0){for(let i=0;i<20;i++){const b=document.createElement('div');b.className='ai-wbar';b.style.height='20%';wave.appendChild(b);}}
+  clearInterval(aiWaveInt);
+  aiWaveInt=setInterval(()=>{wave.querySelectorAll('.ai-wbar').forEach(b=>{b.style.height=(Math.random()*80+10)+'%';b.classList.toggle('active',Math.random()>.3);});},100);
+}
+function stopAIWave() {
+  clearInterval(aiWaveInt);
+  const wave=document.getElementById('ai-wave');
+  if (wave) wave.querySelectorAll('.ai-wbar').forEach(b=>{b.style.height='20%';b.classList.remove('active');});
+}
+function selFACat(el){document.querySelectorAll('.fa-cat').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');}
+function togFA(hdr){hdr.closest('.fa-guide').classList.toggle('open');}
+
+// ─── CONTACTS (Flask backend) ───
+async function addContact() {
+  const name  = (document.getElementById('ec-name')?.value  || '').trim();
+  const phone = (document.getElementById('ec-phone')?.value || '').trim();
+  if (!name || !phone) {
+    showToast('⚠️', 'Missing Info', 'Enter name and phone', 'rgba(255,165,0,.15)');
+    return;
+  }
+  try {
+    const res  = await fetch('/add_contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone })
+    });
+    const data = await res.json();
+    if (data.error) { showToast('❌', 'Error', data.error, 'rgba(255,45,45,.15)'); return; }
+    showToast('✅', 'Contact Added!', `Alert will be sent to ${phone}`, 'rgba(0,230,118,.15)');
+    if (document.getElementById('ec-name'))  document.getElementById('ec-name').value  = '';
+    if (document.getElementById('ec-phone')) document.getElementById('ec-phone').value = '';
+    renderContacts(data.contacts);
+  } catch(_) {
+    // Offline fallback
+    showToast('Saved Locally', `${name} (${phone}) — no backend`, 'rgba(255,165,0,.15)');
+  }
+}
+
+function renderContacts(contacts) {
+  const wrap = document.getElementById('contacts-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  contacts.forEach(c => {
+    const d = document.createElement('div');
+    d.style = 'display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)';
+    d.innerHTML = `<div style="width:34px;height:34px;border-radius:50%;background:rgba(0,212,170,.15);border:1.5px solid rgba(0,212,170,.35);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--teal)">${c.name[0]}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${c.name}</div><div class="xs">${c.phone}</div></div><span class="badge b-g" style="font-size:10px">✓ Active</span>`;
+    wrap.appendChild(d);
+  });
+}
+
+async function loadContacts() {
+  try {
+    const res = await fetch('/get_contacts');
+    const contacts = await res.json();
+    renderContacts(contacts);
+  } catch(_) {}
+}
+
+// ─── AI VOICE POPUP ───
+let popupTimeout=null;
+function showAIPopup(msg){
+  const pop=document.getElementById('ai-popup');
+  document.getElementById('ai-popup-txt').textContent=msg;
+  pop.classList.add('show');
+  clearTimeout(popupTimeout);
+  popupTimeout=setTimeout(()=>pop.classList.remove('show'),8000);
+}
+function closeAIPopup(){document.getElementById('ai-popup').classList.remove('show');}
+
+// ─── MISC ───
+function toggleTheme(){document.documentElement.classList.toggle('light');}
+function showToast(icon,title,msg,bg){
+  const t=document.getElementById('toast');
+  document.getElementById('ti').textContent=icon;
+  document.getElementById('tt').textContent=title;
+  document.getElementById('tm').textContent=msg;
+  t.style.background=bg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ─── CLOCK ───
+function updateClock(){
+  const now=new Date();
+  const s=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.querySelectorAll('[id^="clock-"]').forEach(el=>el.textContent=s);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  updateClock();
+  setInterval(updateClock, 10000);
+  startWave();
+  const aw=document.getElementById('ai-wave');
+  if(aw){for(let i=0;i<20;i++){const b=document.createElement('div');b.className='ai-wbar';b.style.height='20%';aw.appendChild(b);}}
+  if(speechSynth) speechSynth.getVoices();
+  // Check Flask backend + load saved contacts
+  checkBackendHealth();
+  loadContacts();
+});
+</script>
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

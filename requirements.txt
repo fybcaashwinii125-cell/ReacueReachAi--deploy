@@ -1,7 +1,10 @@
+Flask
+gunicorn
 librosa
 matplotlib
 numpy
 pandas
+scikit-learn
 seaborn
+soundfile
 tqdm
-gunicorn
